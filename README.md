@@ -1,4 +1,4 @@
-# qoit-helm-charts
+# qiot-helm-charts
 
 This Repository contains all necessary helm charts to install the whole qiot project onto your own Kubernetes / OpenShift Server.
 
