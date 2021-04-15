@@ -1,0 +1,29 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: qiot-localization-
+  name: localization-run
+spec:
+  params:
+  - name: SERVICE_NAME
+    value: localization-service
+  - name: GITHUB_REPO_URL
+    value: https://github.com/qiot-project/qiot-datahub-localization
+  - name: GITHUB_REPO_REVISION
+    value: main
+  - name: APP_ENV_VARS
+    value: ' '
+  - name: CREATE_ROUTE
+    value: 'no'
+  pipelineRef:
+    name: quarkus-app-build
+  serviceAccountName: pipeline
+  timeout: 30m0s
+  workspaces:
+  - name: source
+    persistentVolumeClaim:
+      claimName: localization-output
+  - configMap:
+      name: maven-settings-xml
+    name: maven-settings

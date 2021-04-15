@@ -1,0 +1,32 @@
+apiVersion: v1
+data:
+  settings.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <settings>
+        <mirrors>
+            <mirror>
+                <id>ocp-nexus</id>
+                <name>ocp-nexus</name>
+                <url>{{ .Values.maven.url }}</url>
+                <mirrorOf>*</mirrorOf>
+            </mirror>
+        </mirrors>
+        <profiles>
+            <profile>
+                <id>maven-nexus-repo</id>
+                <repositories>
+                    <repository>
+                        <id>ocp-nexus</id>
+                        <name>ocp-nexus</name>
+                        <url>{{ .Values.maven.url }}</url>
+                    </repository>
+                </repositories>
+            </profile>
+        </profiles>
+        <activeProfiles>
+            <activeProfile>maven-nexus-repo</activeProfile>
+        </activeProfiles>
+    </settings>
+kind: ConfigMap
+metadata:
+  name: maven-settings-xml

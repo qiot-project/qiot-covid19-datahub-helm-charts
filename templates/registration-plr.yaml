@@ -1,0 +1,29 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: qiot-registration-
+  name: registration-run
+spec:
+  params:
+  - name: SERVICE_NAME
+    value: registration-service
+  - name: GITHUB_REPO_URL
+    value: https://github.com/qiot-project/qiot-datahub-registration
+  - name: GITHUB_REPO_REVISION
+    value: v2
+  - name: APP_ENV_VARS
+    value: ' -e STATION-SERVICE-URL=http://station-service:8080 -e CERT_MANAGER_ENABLED=false -e LOGLEVEL=FINE'
+  - name: CREATE_ROUTE
+    value: 'secure'
+  pipelineRef:
+    name: quarkus-app-build
+  serviceAccountName: pipeline
+  timeout: 30m0s
+  workspaces:
+  - name: source
+    persistentVolumeClaim:
+      claimName: registration-output
+  - configMap:
+      name: maven-settings-xml
+    name: maven-settings

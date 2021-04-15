@@ -1,0 +1,137 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: quarkus-app-build
+  labels:
+    pipeline.openshift.io/runtime: java
+spec:
+  description: >-
+    The Pipline to buld and deploy the Hello World Java App https://github.com/redhat-scholars/tekton-tutorial-greeter as Knative Service.
+  params:
+    - name: SERVICE_NAME
+      description: The name of the service e.g. localisation-service
+      default: importer-service
+    - name: GITHUB_REPO_URL
+      description: The GitHub Repo of the Application
+      default: https://github.com/qiot-project/qiot-datahub-importer
+    - name: GITHUB_REPO_REVISION
+      description: The GitHub revision to use
+      default: main
+    - name: APP_ENV_VARS
+      description: Environment variables for new-app command -e NAME=value
+      default: ' '
+    - name: CREATE_ROUTE
+      description: The type of route to create - no, secure, insecure
+      default: 'no'
+    - name: SECURE_ROUTE_TYPE
+      description: The type of secure route to create - edge, passthrough, reencrypt
+      default: passthrough
+    - name: BUILD_TYPE
+      description: The type of Quarkus build - quarkus-jvm, quarkus-fast-jar, quarkus-native
+      default: quarkus-native
+    - name: DOCKER_TYPE
+      description: The type of docker file to use Dockerfile.[java|native]
+      default: native
+    - name: MULTI_MODULE_CONTEXT
+      description: The context directory used for multi-module builds
+      default: .
+  workspaces:
+    - name: source
+    - name: maven-settings
+  tasks:
+    - name: clone-sources
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.GITHUB_REPO_URL)
+        - name: revision
+          value: $(params.GITHUB_REPO_REVISION)
+        # just to do a fresh clone, as we already have the directory cloned
+        # to reuse it we can exlude this step
+        - name: deleteExisting
+          value: 'true'
+      workspaces:
+        - name: output
+          workspace: source
+    - name: compile-quarkus-app
+      taskRef:
+        name: quarkus-compile
+        kind: Task
+      runAfter:
+        - clone-sources
+      params:
+        - name: build-type
+          value: '$(params.BUILD_TYPE)'
+        - name: multi-module
+          value: '$(params.MULTI_MODULE_CONTEXT)'
+      workspaces:
+        - name: maven-settings
+          workspace: maven-settings
+        - name: source
+          workspace: source
+    - name: build-app-image
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      runAfter:
+        - compile-quarkus-app
+      params:
+        - name: IMAGE
+          value: 'image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/$(params.SERVICE_NAME)'
+        - name: DOCKERFILE
+          value: 'src/main/docker/Dockerfile.$(params.DOCKER_TYPE)'
+        # since pushing to internal registry we skip TLS verify
+        - name: TLSVERIFY
+          value: 'false'
+        - name: CONTEXT
+          value: '$(params.MULTI_MODULE_CONTEXT)'
+      workspaces:
+        - name: source
+          workspace: source
+    - name: deploy-app
+      taskRef:
+        name: openshift-client
+        kind: ClusterTask
+      runAfter:
+        - build-app-image
+      params:
+        - name: ARGS
+          value:
+            - 'new-app'
+            - '$(params.SERVICE_NAME)'
+            - '$(params.APP_ENV_VARS)'
+    - name: create-insecure-route
+      runAfter:
+        - deploy-app
+      when:
+        - input: '$(params.CREATE_ROUTE)'
+          operator: in
+          values: ["insecure"]
+      taskRef:
+        name: openshift-client
+        kind: ClusterTask
+      params:
+        - name: ARGS
+          value:
+            - 'expose'
+            - 'svc/$(params.SERVICE_NAME)'
+    - name: create-secure-route
+      runAfter:
+        - deploy-app
+      when:
+        - input: '$(params.CREATE_ROUTE)'
+          operator: in
+          values: ["secure"]
+      taskRef:
+        name: openshift-client
+        kind: ClusterTask
+      params:
+        - name: ARGS
+          value:
+            - 'create route'
+            - '$(params.SECURE_ROUTE_TYPE)'
+            - '$(params.SERVICE_NAME)'
+            - '--service=$(params.SERVICE_NAME)'
