@@ -1,9 +1,9 @@
 apiVersion: v2
-name: qiot-installer
+name: qiot-pipeline-installer
 description: This Helm Chart is going to install the qiot project into a new instance of OpenShift
 home: https://github.com/qiot-project
 type: application
-version: 0.1.0
+version: 0.1.2
 appVersion: "1.0.0"
 maintainers:
     - name: Wanja Pernath
