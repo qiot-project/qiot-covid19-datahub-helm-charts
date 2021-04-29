@@ -1,5 +1,5 @@
 apiVersion: v2
-name: qiot-pipeline-installer
+name: qiot-covid19-datahub
 description: This Helm Chart is going to install the qiot project into a new instance of OpenShift
 home: https://github.com/qiot-project
 type: application
